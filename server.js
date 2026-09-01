@@ -1,11 +1,9 @@
-import express from 'express';
+import { createServer } from 'http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-
-const app = express();
 
 const client = new Client(
   { name: 'tgstat-bridge', version: '1.0.0' },
@@ -29,34 +27,55 @@ async function getTools() {
   return cachedTools;
 }
 
-app.post('/mcp', async (req, res) => {
-  try {
-    const tools = await getTools();
-    const server = new Server(
-      { name: 'tgstat-http', version: '1.0.0' },
-      { capabilities: { tools: {} } }
-    );
-    server.setRequestHandler(ListToolsRequestSchema, () => ({ tools }));
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      return await client.callTool(request.params);
-    });
+const httpServer = createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-protocol-version');
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-    });
-
-    res.on('close', () => transport.close());
-    await server.connect(transport);
-    await transport.handleRequest(req, res);
-  } catch (error) {
-    console.error('MCP error:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: error.message });
-    }
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
   }
+
+  if (req.method === 'GET' && req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok' }));
+    return;
+  }
+
+  if (req.method === 'POST' && (req.url === '/mcp' || req.url.startsWith('/mcp'))) {
+    try {
+      const tools = await getTools();
+      const mcpServer = new Server(
+        { name: 'tgstat-http', version: '1.0.0' },
+        { capabilities: { tools: {} } }
+      );
+      mcpServer.setRequestHandler(ListToolsRequestSchema, () => ({ tools }));
+      mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+        return await client.callTool(request.params);
+      });
+
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+
+      res.on('close', () => transport.close());
+      await mcpServer.connect(transport);
+      await transport.handleRequest(req, res);
+    } catch (error) {
+      console.error('MCP error:', error);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Not found' }));
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
-
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`🌐 Running on :${PORT}`));
+httpServer.listen(PORT, () => console.log(`🌐 Running on :${PORT}`));

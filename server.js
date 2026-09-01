@@ -6,7 +6,6 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const app = express();
-app.use(express.json());
 
 const client = new Client(
   { name: 'tgstat-bridge', version: '1.0.0' },
@@ -41,15 +40,19 @@ app.post('/mcp', async (req, res) => {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await client.callTool(request.params);
     });
+
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
+
     res.on('close', () => transport.close());
     await server.connect(transport);
     await transport.handleRequest(req, res);
   } catch (error) {
     console.error('MCP error:', error);
-    if (!res.headersSent) res.status(500).json({ error: error.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 

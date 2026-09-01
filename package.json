@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "@theyahia/tgstat-mcp": "latest",
-    "@modelcontextprotocol/sdk": "latest",
-    "express": "^4.21.0"
+    "@modelcontextprotocol/sdk": "latest"
   }
 }

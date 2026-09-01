@@ -1,0 +1,14 @@
+{
+  "name": "tgstat-mcp-http",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@theyahia/tgstat-mcp": "latest",
+    "@modelcontextprotocol/sdk": "latest",
+    "express": "^4.21.0"
+  }
+}

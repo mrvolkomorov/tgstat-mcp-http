@@ -7,7 +7,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@theyahia/tgstat-mcp": "latest",
-    "@modelcontextprotocol/sdk": "latest"
+    "@theyahia/tgstat-mcp": "latest"
   }
 }

@@ -57,10 +57,11 @@ async function getTools() {
   return cachedTools;
 }
 
+const VERSION = 'v3';
 const httpServer = createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -70,7 +71,7 @@ const httpServer = createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
+    res.end(JSON.stringify({ status: 'ok', version: VERSION }));
     return;
   }
 
@@ -81,59 +82,46 @@ const httpServer = createServer(async (req, res) => {
       try {
         const msg = JSON.parse(body);
         const id = msg.id;
+        const method = msg.method;
+        console.log('MCP method:', method, 'id:', id);
 
-        if (msg.method === 'tools/list') {
+        const ok = (result) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result }));
+        };
+
+        if (method === 'tools/list') {
           const tools = await getTools();
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { tools } }));
-
-        } else if (msg.method === 'tools/call') {
+          ok({ tools });
+        } else if (method === 'tools/call') {
           const r = await callStdin('tools/call', msg.params);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: r.result }));
-
-        } else if (msg.method === 'initialize') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            jsonrpc: '2.0', id,
-            result: {
-              protocolVersion: '2024-11-05',
-              capabilities: { tools: {} },
-              serverInfo: { name: 'tgstat-http', version: '1.0.0' }
-            }
-          }));
-
-        } else if (msg.method === 'notifications/initialized') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', result: {} }));
-
-        } else if (msg.method === 'resources/list') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { resources: [] } }));
-
-        } else if (msg.method === 'resources/read') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { contents: [] } }));
-
-        } else if (msg.method === 'prompts/list') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { prompts: [] } }));
-
-        } else if (msg.method === 'prompts/get') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: {} }));
-
-        } else if (msg.method === 'completion/complete') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { completion: { values: [], total: 0, hasMore: false } } }));
-
-        } else if (msg.method === 'logging/setLevel') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: {} }));
-
+          ok(r.result);
+        } else if (method === 'initialize') {
+          ok({
+            protocolVersion: '2024-11-05',
+            capabilities: { tools: {} },
+            serverInfo: { name: 'tgstat-http', version: '1.0.0' }
+          });
+        } else if (method === 'notifications/initialized' || method.startsWith('notifications/')) {
+          ok({});
+        } else if (method === 'resources/list') {
+          ok({ resources: [] });
+        } else if (method === 'resources/read') {
+          ok({ contents: [] });
+        } else if (method === 'resources/templates/list') {
+          ok({ resourceTemplates: [] });
+        } else if (method === 'prompts/list') {
+          ok({ prompts: [] });
+        } else if (method === 'prompts/get') {
+          ok({});
+        } else if (method === 'completion/complete') {
+          ok({ completion: { values: [], total: 0, hasMore: false } });
+        } else if (method === 'logging/setLevel') {
+          ok({});
         } else {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } }));
+          // Catch-all: respond with empty success to avoid breaking clients
+          console.log('Unknown method, returning empty result:', method);
+          ok({});
         }
       } catch (error) {
         console.error('Error:', error);
@@ -149,4 +137,4 @@ const httpServer = createServer(async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
-httpServer.listen(PORT, () => console.log(`🌐 MCP bridge running on :${PORT}`));
+httpServer.listen(PORT, () => console.log(`🌐 MCP bridge ${VERSION} running on :${PORT}`));

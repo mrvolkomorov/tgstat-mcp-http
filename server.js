@@ -1,7 +1,6 @@
 import { createServer } from 'http';
 import { spawn } from 'child_process';
 
-// Start tgstat-mcp as stdio child process
 const child = spawn('npx', ['-y', '@theyahia/tgstat-mcp'], {
   env: { ...process.env, TGSTAT_TOKEN: process.env.TGSTAT_TOKEN },
   stdio: ['pipe', 'pipe', 'inherit'],
@@ -25,9 +24,7 @@ child.stdout.on('data', (chunk) => {
         pending.get(msg.id)(msg);
         pending.delete(msg.id);
       }
-    } catch (e) {
-      // ignore non-JSON lines
-    }
+    } catch (e) {}
   }
 });
 
@@ -51,10 +48,13 @@ function callStdin(method, params) {
   });
 }
 
-const tools = null;
+let cachedTools = null;
 async function getTools() {
-  const res = await callStdin('tools/list', {});
-  return res.result?.tools || [];
+  if (!cachedTools) {
+    const res = await callStdin('tools/list', {});
+    cachedTools = res.result?.tools || [];
+  }
+  return cachedTools;
 }
 
 const httpServer = createServer(async (req, res) => {
@@ -80,23 +80,60 @@ const httpServer = createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const msg = JSON.parse(body);
-        let result;
-        
+        const id = msg.id;
+
         if (msg.method === 'tools/list') {
-          result = await getTools();
+          const tools = await getTools();
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { tools: result } }));
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { tools } }));
+
         } else if (msg.method === 'tools/call') {
           const r = await callStdin('tools/call', msg.params);
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: r.result }));
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: r.result }));
+
         } else if (msg.method === 'initialize') {
-          const r = await callStdin('initialize', msg.params);
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: r.result }));
+          res.end(JSON.stringify({
+            jsonrpc: '2.0', id,
+            result: {
+              protocolVersion: '2024-11-05',
+              capabilities: { tools: {} },
+              serverInfo: { name: 'tgstat-http', version: '1.0.0' }
+            }
+          }));
+
+        } else if (msg.method === 'notifications/initialized') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', result: {} }));
+
+        } else if (msg.method === 'resources/list') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { resources: [] } }));
+
+        } else if (msg.method === 'resources/read') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { contents: [] } }));
+
+        } else if (msg.method === 'prompts/list') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { prompts: [] } }));
+
+        } else if (msg.method === 'prompts/get') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: {} }));
+
+        } else if (msg.method === 'completion/complete') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { completion: { values: [], total: 0, hasMore: false } } }));
+
+        } else if (msg.method === 'logging/setLevel') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, result: {} }));
+
         } else {
           res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: 'Method not found' } }));
+          res.end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } }));
         }
       } catch (error) {
         console.error('Error:', error);

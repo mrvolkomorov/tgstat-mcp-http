@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "rm -rf node_modules/.cache 2>/dev/null; node server.js"
   },
   "dependencies": {
     "@theyahia/tgstat-mcp": "latest"

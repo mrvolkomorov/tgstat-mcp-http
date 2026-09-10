@@ -4,7 +4,6 @@ HTTP-обёртка для [@theyahia/tgstat-mcp](https://www.npmjs.com/package/
 Позволяет использовать TGStat MCP Server через HTTP — идеально для развёртывания на облачных платформах.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mrvolkomorov/tgstat-mcp-http)
-[![Deploy on Northflank](https://assets.northflank.com/deploy_to_northflank_smm_36700fb050.svg)](https://northflank.com/stacks)
 
 ---
 
@@ -17,21 +16,21 @@ HTTP-обёртка для [@theyahia/tgstat-mcp](https://www.npmjs.com/package/
 3. Введи `TGSTAT_TOKEN` — свой API-токен TGStat
 4. Нажми **Apply** — через минуту сервер будет готов
 
-### Northflank 🚧
+### Northflank 🚀
 
-> Northflank пока не поддерживает автоматическую кнопку деплоя для произвольного репозитория (в отличие от Render).
-> Нужно создать проект вручную — это занимает 2 минуты.
+> Northflank не поддерживает кнопку деплоя для произвольных репозиториев — только для шаблонов из [Stacks](https://northflank.com/stacks).
+> Создать проект вручную через Northflank Dashboard — 2 минуты:
 
-1. Нажми **Deploy on Northflank**, зарегистрируйся / войди
-2. Создай **новый проект**
-3. Добавь **Service → Web Service**
-4. Выбери репозиторий `mrvolkomorov/tgstat-mcp-http`
-5. В разделе **Build** выбери **Dockerfile** (он уже есть в репозитории)
-6. В **Environment Variables** добавь:
+1. Зарегистрируйся / войди в [Northflank Dashboard](https://app.northflank.com)
+2. Создай новый проект (если нет) → **New Project**
+3. Внутри проекта: **Add Service → Web Service**
+4. Подключи GitHub и выбери репозиторий `mrvolkomorov/tgstat-mcp-http`
+5. В настройках Build выбери **Dockerfile** (он уже есть в репозитории)
+6. В разделе **Environment Variables** добавь:
    - `TGSTAT_TOKEN` — твой API-токен TGStat
 7. Нажми **Deploy**
 
-> Готово! На проект уже есть [`Dockerfile`](./Dockerfile) и [`package.json`](./package.json) — Northflank подхватит всё автоматически.
+> Репозиторий уже содержит [`Dockerfile`](./Dockerfile) на `node:20-alpine` — Northflank подхватит его автоматически.
 
 ### Railway 🚆
 
@@ -68,8 +67,8 @@ TGSTAT_TOKEN=your_token_here npm start
 
 | Платформа | Статус | Комментарий |
 |-----------|:------:|-------------|
-| **Render** | ✅ Полностью | `PORT` из env, health check, CORS — всё работает. `render.yaml` прилагается. |
-| **Northflank** | ✅ Совместимо | Node.js + Dockerfile. Надо создать проект вручную (см. инструкцию выше). |
+| **Render** | ✅ Полностью | `PORT` из env, health check, CORS. `render.yaml` в репозитории. |
+| **Northflank** | ✅ Полностью | Node.js + Dockerfile. Создать Web Service вручную (2 мин). |
 | **Railway** | ✅ Полностью | Изначально спроектирован под Railway. |
 
-Код (`server.js`) не требует изменений для какой-либо из платформ — используется универсальный `process.env.PORT || 8080` и чистый HTTP-сервер.
+Код (`server.js`) универсален — не требует изменений для любой из платформ.

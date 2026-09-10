@@ -1,0 +1,14 @@
+# render.yaml
+# One-click deploy configuration for Render
+# See: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: tgstat-mcp-http
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: TGSTAT_TOKEN
+        sync: false
